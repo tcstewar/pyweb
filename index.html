@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="css/pyweb.css"/>
+    <script src="js/jquery-3.5.0.min.js"></script>
+    <script type="text/javascript">
+      window.languagePluginUrl = 'pyodide/'
+    </script>  
+    <script src="pyodide/pyodide.js"></script>
+  </head>
+  <body>
+    <script>
+      function reload() {
+        $.get({url: 'index.py', cache:false}).then((code) => {
+            $('#btn_reload').prop('disabled', true);        
+            pyodide.runPython(code);
+        }).always(() => {
+            $('#btn_reload').prop('disabled', false);        
+        });
+      }
+      languagePluginLoader.then(reload);
+    </script>
+    
+    <div id="toolbar">
+        <button id="btn_reload" type="button" onclick='reload();' disabled="true">Reload</button>
+    </div>    
+    <div id="content"/>
+  </body>
+</html>
