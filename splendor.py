@@ -243,11 +243,20 @@ class Player(object):
 
 
 class Splendor(object):
-    def __init__(self, n_players, seed):
+    def __init__(self, seed):
+        self.started = False
+        self.n_players = 1
+        self.current_player = None
+        self.seed = seed
+    
+    
+    def start(self):
+        self.started = True
+        n_players = self.n_players
         self.players = [Player(self) for i in range(n_players)]
-        rng = random.Random()
-        rng.seed(seed)
         all_cards = generate_cards()
+        rng = random.Random()
+        rng.seed(self.seed)
         rng.shuffle(all_cards)
         self.levels = {}
         self.tableau = {}
@@ -305,10 +314,27 @@ class Splendor(object):
             max_points = max([p.points for p in self.players])
             self.winners = [p for p in self.players if p.points == max_points]
             self.current_player = None
+    
+    def add_player(self):
+        self.n_players += 1
+        
+    def remove_player(self):
+        self.n_players -= 1
+        
+    def valid_actions(self):
+        actions = []
+        if not self.started:
+            actions.append((self.add_player, {}))
+            if self.n_players > 1:
+                actions.append((self.remove_player, {}))
+            actions.append((self.start, {}))
+        return actions
 
 
 
 def text_game_state(game):
+    if not game.started:
+        return 'Ready to play with %d players' % game.n_players
     rows = []
     n = ''.join('%14s' % text_noble(n) for n in game.nobles)
     rows.append(n)
@@ -387,6 +413,12 @@ def text_action(func, args):
         return 'Reserve: %s' % text_card(args['card'])
     elif name == 'play':
         return 'Play: %s' % text_card(args['card'])
+    elif name == 'add_player':
+        return 'Add a player'
+    elif name == 'remove_player':
+        return 'Remove a player'
+    elif name == 'start':
+        return 'Start game'
     else:
         return name, args
 def code_action(func, args):
@@ -399,6 +431,12 @@ def code_action(func, args):
         return 'r:%s' % text_card(args['card'])
     elif name == 'play':
         return 'p:%s' % text_card(args['card'])
+    elif name == 'add_player':
+        return 'add'
+    elif name == 'remove_player':
+        return 'remove'
+    elif name == 'start':
+        return 'start'
     else:
         return 'unknown:%r %r' % (name, args)
         
@@ -408,8 +446,11 @@ def html_action(func, args):
     return '<li onclick="%s">%s</li>' % (code, text_action(func, args))
 
 def act(code):
-    p = game.players[game.current_player]
-    actions = p.valid_actions()
+    if game.current_player is None:
+        actions = game.valid_actions()
+    else:
+        p = game.players[game.current_player]
+        actions = p.valid_actions()
     for f, a in actions:
         code2 = code_action(f, a)
         if code == code2:
@@ -419,13 +460,16 @@ def update():
     txt = text_game_state(game)
     q('#board').html('<pre>%s</pre>'%txt)
 
-    p = game.players[game.current_player]
-    actions = p.valid_actions()
+    if game.current_player is not None:
+        p = game.players[game.current_player]
+        actions = p.valid_actions()
+    else:
+        actions = game.valid_actions()
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
     
 def on_changed(items):
-    print('on_changed')
-    game = Splendor(n_players=2, seed=3)
+    global game
+    game = Splendor(seed=3)
     for item in items:
         act(item)
     update()
@@ -433,7 +477,7 @@ def on_changed(items):
     
 
 
-game = Splendor(n_players=2, seed=3)    
+game = Splendor(seed=3)    
 update()
 
 
