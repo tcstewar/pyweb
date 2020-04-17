@@ -18,57 +18,55 @@ class PeerStack {
     connect_to(host) {
         self = this;
         this.is_connecting = true;
-        console.log('connect_to: '+host);
-        console.log(this);
         this.conn = this.peer.connect(host, {reliable:true});
         this.conn.on('open', () => {self.on_connect_to_host();});
         this.conn.on('error', () => {console.log('error');});
-        setTimeout(() => {  if (self.is_connecting) self.connect_to(host);}, 2000);
-                 
+        
+        // no idea why this fails to give either open or error sometimes, so try again
+        setTimeout(() => {  if (self.is_connecting) self.connect_to(host);}, 2000);         
     }
     
     on_connect_to_host() {
         this.is_connecting = false;
-        console.log('on_connect_to_host');
-        console.log(this);
-        this.conn.on('data', (data) => {self.received_data(data);});
+        this.conn.on('data', (data) => {self.received_data(data, self.conn);});
+        this.conn.send({type:"get-all"});
         this.is_host = false;
         this.items = [];
     }
     
-    received_data(data) {
-        console.log('received: '+data);
-        if (this.is_host) {
-            this.add(data);
-        } else {
-            this.items.push(data);
-            $(this).trigger('added');
+    received_data(data, conn) {
+        if (data.type == 'item') {
+            if (this.is_host) {
+                this.add(data.value);
+            } else {
+                this.items.push(data.value);
+                $(this).trigger('added');
+            }
+        } else if (data.type == 'get-all') {
+            conn.send({type:"all", value:this.items});
+        } else if (data.type == 'all') {
+            this.items = data.value;
+            $(this).trigger('changed');
         }
     }
     
     on_connect_from_client(conn) {
         self = this;
-        console.log(this);
         this.clients.push(conn);
-        conn.on('data', (data) => {self.received_data(data);});
-        for (var i in this.items) {
-            console.log('send: '+this.items[i]);
-            conn.send(this.items[i]);
-        }
+        conn.on('data', (data) => {self.received_data(data, conn);});
     }
         
         
 
     add(item) {
         if (this.is_host) {
+            for (var i in this.clients) {
+                this.clients[i].send({type:"item", index:this.items.length, value:item});
+            }
             this.items.push(item);
             $(this).trigger('added');
-            for (var i in this.clients) {
-                console.log('send: '+item);
-                this.clients[i].send(item);
-            }
         } else {
-            this.conn.send(item);
+            this.conn.send({type:"item", index:this.items.length, value:item});
         }
     }
     
