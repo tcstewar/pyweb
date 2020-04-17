@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="css/pyweb.css"/>
+    <script src="js/jquery-3.5.0.min.js"></script>
+    <script src="js/peerjs.min.js"></script>
+    <script src="js/peerstack.js"></script>
+  </head>
+  <body>
+    <script>
+        var peerstack = new PeerStack();
+        peerstack.on('added', redraw)
+                 .on('changed', redraw)
+                 .on('open', on_open)
+                 .init();
+        
+        function redraw() {
+            $('#board').html(peerstack.items);
+        }
+        
+        function on_open() {
+            var url = new URL(window.location.href);
+            if (url.search) {
+                //setTimeout(() => {  peerstack.connect_to(url.search.substr(1)); }, 2000);
+                peerstack.connect_to(url.search.substr(1));
+            } else {
+                url.search = peerstack.peer.id;
+            }
+            $('#peersync').append($('<a></a>').text("link").prop('href', url.href).prop('target', '_blank'));
+        }
+        
+    </script>
+    
+    <div id="toolbar">
+        <div id="peersync">
+        </div>
+    </div>    
+    <div id="content">
+        <div id="board"></div>
+        <div id="actions">
+           <ul>
+               <li><a onclick='peerstack.add("a")'>a</a></li>
+               <li><a onclick='peerstack.add("b")'>b</a></li>
+               <li><a onclick='peerstack.add("c")'>c</a></li>
+        </div>
+    </div>
+  </body>
+</html>
