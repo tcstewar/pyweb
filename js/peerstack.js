@@ -1,10 +1,10 @@
 class PeerStack {
     constructor() {
+        this.items = [];
     }
     
     init() { 
         self = this;
-        this.items = [];
         this.clients = [];
         this.peer = new Peer();
         this.peer.on('open', () => {$(self).trigger('open');});

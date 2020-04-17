@@ -400,11 +400,11 @@ def code_action(func, args):
     elif name == 'play':
         return 'p:%s' % text_card(args['card'])
     else:
-        return name, args
+        return 'unknown:%r %r' % (name, args)
         
         
 def html_action(func, args):
-    code = "act('%s')" % code_action(func, args)
+    code = "peerstack.add('%s')" % code_action(func, args)
     return '<li onclick="%s">%s</li>' % (code, text_action(func, args))
 
 def act(code):
@@ -414,7 +414,6 @@ def act(code):
         code2 = code_action(f, a)
         if code == code2:
             f(**a)
-            update()
     
 def update():
     txt = text_game_state(game)
@@ -423,9 +422,18 @@ def update():
     p = game.players[game.current_player]
     actions = p.valid_actions()
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
+    
+def on_changed(items):
+    print('on_changed')
+    game = Splendor(n_players=2, seed=3)
+    for item in items:
+        act(item)
+    update()
+    
+    
 
 
-game = Splendor(n_players=1, seed=3)
+game = Splendor(n_players=2, seed=3)    
 update()
 
 

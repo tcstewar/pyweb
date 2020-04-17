@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="css/pyweb.css"/>
     <script src="js/jquery-3.5.0.min.js"></script>
+    <script src="js/peerjs.min.js"></script>
+    <script src="js/peerstack.js"></script>
+    
     <script type="text/javascript">
       window.languagePluginUrl = 'pyodide/'
     </script>  
@@ -11,11 +14,38 @@
   </head>
   <body>
     <script>
+        var peerstack = new PeerStack(); 
+        
+        function redraw() {
+            on_changed(peerstack.items);
+        };
+        
+        function on_open() {
+            console.log('on_open');
+            var url = new URL(window.location.href);
+            if (url.search) {
+                peerstack.connect_to(url.search.substr(1));
+            } else {
+                url.search = peerstack.peer.id;
+            }
+            $('#peersync').append($('<a></a>').text("link").prop('href', url.href).prop('target', '_blank'));
+        };
+    
+    
+    
+    
       function reload() {
+        console.log('reload');
         $.get({url: 'splendor.py', cache:false}).then((code) => {
             $('#btn_reload').prop('disabled', true);        
             pyodide.runPython(code);
-            act = pyodide.pyimport('act');
+            on_changed = pyodide.pyimport('on_changed');
+                 
+            peerstack.on('added', redraw)
+                     .on('changed', redraw)
+                     .on('open', on_open)
+                     .init();
+            redraw();
         }).always(() => {
             $('#btn_reload').prop('disabled', false);        
         });
@@ -24,11 +54,16 @@
       
       function query(x) {
           return $(x);
-      }
+      }      
+      
+      
+
+
     </script>
     
     <div id="toolbar">
         <button id="btn_reload" type="button" onclick='reload();' disabled="true">Reload</button>
+        <a id="peersync" href="" target="_blank" disabled="true"></a>
     </div>    
     <div id="content">
         <div id="board"></div>
