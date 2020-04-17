@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="css/pyweb.css"/>
     <script src="js/jquery-3.5.0.min.js"></script>
     <script src="js/peerjs.min.js"></script>
-    <script src="js/peerstack.js"></script>
+    <script src="js/peerstack.js?1"></script>
     
     <script type="text/javascript">
       window.languagePluginUrl = 'pyodide/'
@@ -68,6 +68,7 @@
     <div id="content">
         <div id="board"></div>
         <div id="actions"></div>
+        <button id="btn_undo" type="button" onclick='peerstack.undo();'>Undo</button>
     </div>
   </body>
 </html>

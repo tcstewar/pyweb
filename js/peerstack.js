@@ -47,6 +47,8 @@ class PeerStack {
         } else if (data.type == 'all') {
             this.items = data.value;
             $(this).trigger('changed');
+        } else if (data.type == 'undo') {
+            this.undo();
         }
     }
     
@@ -60,15 +62,32 @@ class PeerStack {
 
     add(item) {
         if (this.is_host) {
-            for (var i in this.clients) {
-                this.clients[i].send({type:"item", index:this.items.length, value:item});
-            }
+            this.send_to_clients({type:"item", index:this.items.length, value:item});
             this.items.push(item);
             $(this).trigger('added');
         } else {
             this.conn.send({type:"item", index:this.items.length, value:item});
         }
     }
+    
+    send_to_clients(msg) {
+        for (var i in this.clients) {
+            this.clients[i].send(msg);
+        }        
+    }
+    
+    undo() {
+        if (this.is_host) {
+            if (this.items.length > 0) {                
+                this.items.pop();
+                this.send_to_clients({type:"all", value:this.items});
+                $(this).trigger('changed');
+            }
+        } else {
+            this.conn.send({type:"undo"});
+        }
+    }
+            
     
     on(ev, func) {
         $(this).on(ev, func);

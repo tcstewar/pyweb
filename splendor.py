@@ -322,12 +322,17 @@ class Splendor(object):
         self.n_players -= 1
         
     def valid_actions(self):
-        actions = []
         if not self.started:
+            actions = []
             actions.append((self.add_player, {}))
             if self.n_players > 1:
                 actions.append((self.remove_player, {}))
             actions.append((self.start, {}))
+        elif self.current_player is not None:
+            p = game.players[game.current_player]
+            actions = p.valid_actions()        
+        else:
+            actions = []
         return actions
 
 
@@ -446,11 +451,7 @@ def html_action(func, args):
     return '<li onclick="%s">%s</li>' % (code, text_action(func, args))
 
 def act(code):
-    if game.current_player is None:
-        actions = game.valid_actions()
-    else:
-        p = game.players[game.current_player]
-        actions = p.valid_actions()
+    actions = game.valid_actions()
     for f, a in actions:
         code2 = code_action(f, a)
         if code == code2:
@@ -460,11 +461,7 @@ def update():
     txt = text_game_state(game)
     q('#board').html('<pre>%s</pre>'%txt)
 
-    if game.current_player is not None:
-        p = game.players[game.current_player]
-        actions = p.valid_actions()
-    else:
-        actions = game.valid_actions()
+    actions = game.valid_actions()
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
     
 def on_changed(items):
