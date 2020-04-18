@@ -14,21 +14,22 @@
   </head>
   <body>
     <script>
-        var peerstack = new PeerStack(); 
+        var peerstack = new PeerStack();
+        peerstack.metadata.seed = Math.floor(Math.random() * Math.pow(2, 32));
         
         function redraw() {
-            on_changed(peerstack.items);
+            on_changed(peerstack.items, peerstack.metadata);
         };
         
         function on_open() {
-            console.log('on_open');
             var url = new URL(window.location.href);
             if (url.search) {
                 peerstack.connect_to(url.search.substr(1));
             } else {
                 url.search = peerstack.peer.id;
+                redraw();
             }
-            $('#peersync').append($('<a></a>').text("link").prop('href', url.href).prop('target', '_blank'));
+            $('#peersync').append($('<a></a>').text("invite").prop('href', url.href).prop('target', '_blank'));
         };
     
     
@@ -37,7 +38,6 @@
       function reload() {
         console.log('reload');
         $.get({url: 'splendor.py', cache:false}).then((code) => {
-            $('#btn_reload').prop('disabled', true);        
             pyodide.runPython(code);
             on_changed = pyodide.pyimport('on_changed');
                  
@@ -46,8 +46,6 @@
                      .on('open', on_open)
                      .init();
             redraw();
-        }).always(() => {
-            $('#btn_reload').prop('disabled', false);        
         });
       }
       languagePluginLoader.then(reload);
@@ -62,7 +60,6 @@
     </script>
     
     <div id="toolbar">
-        <button id="btn_reload" type="button" onclick='reload();' disabled="true">Reload</button>
         <a id="peersync" href="" target="_blank" disabled="true"></a>
     </div>    
     <div id="content">

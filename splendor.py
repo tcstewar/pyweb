@@ -464,19 +464,11 @@ def update():
     actions = game.valid_actions()
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
     
-def on_changed(items):
+def on_changed(items, metadata):
     global game
-    game = Splendor(seed=3)
+    game = Splendor(seed=metadata['seed'])
     for item in items:
         act(item)
     update()
-    
-    
-
-
-game = Splendor(seed=3)    
-update()
-
-
 
 

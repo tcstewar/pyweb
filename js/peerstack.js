@@ -1,6 +1,7 @@
 class PeerStack {
     constructor() {
         this.items = [];
+        this.metadata = {}
     }
     
     init() { 
@@ -43,8 +44,9 @@ class PeerStack {
                 $(this).trigger('added');
             }
         } else if (data.type == 'get-all') {
-            conn.send({type:"all", value:this.items});
+            conn.send({type:"all", value:this.items, metadata:this.metadata});
         } else if (data.type == 'all') {
+            this.metadata = data.metadata;
             this.items = data.value;
             $(this).trigger('changed');
         } else if (data.type == 'undo') {
@@ -80,7 +82,7 @@ class PeerStack {
         if (this.is_host) {
             if (this.items.length > 0) {                
                 this.items.pop();
-                this.send_to_clients({type:"all", value:this.items});
+                this.send_to_clients({type:"all", value:this.items, metadata:this.metadata});
                 $(this).trigger('changed');
             }
         } else {
