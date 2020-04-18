@@ -76,42 +76,7 @@ class Player(object):
         self.reserve = []
         self.nobles = []
         self.points = 0
-
-    def can_draw_three(self, **kwargs):
-        if self.game.players[self.game.current_player] is not self:
-            return False
-        if self.game.must_select_noble:
-            return False
-        if sum(kwargs.values()) > 3:
-            return False
-        for c in colors:
-            n = kwargs.get(c, 0)
-            if n < 0 or n > 1 or n > self.game.chips[c]:
-                return False
-        return True
-
-    def draw_three(self, **kwargs):
-        assert self.can_draw_three(**kwargs)
-        for c in colors:
-            n = kwargs.get(c, 0)
-            self.chips[c] += n
-            self.game.chips[c] -= n
-        self.game.end_turn()
-
-    def can_draw_two(self, color):
-        if self.game.players[self.game.current_player] is not self:
-            return False
-        if self.game.must_select_noble:
-            return False
-        if self.game.chips[color] < 4:
-            return False
-        return True
-
-    def draw_two(self, color):
-        assert self.can_draw_two(color)
-        self.chips[color] += 2
-        self.game.chips[color] -= 2
-        self.game.end_turn()
+        self.drawn_this_turn = []
 
     def can_reserve_card(self, card):
         if self.game.players[self.game.current_player] is not self:
@@ -208,39 +173,53 @@ class Player(object):
 
     def valid_actions(self):
         actions = []
-        if self.game.must_select_noble:
-            for n in self.game.selectable_nobles:
-                actions.append((self.select_noble, dict(noble=n)))
-            return actions
+        if len(self.drawn_this_turn) == 0:
+            if self.game.must_select_noble:
+                for n in self.game.selectable_nobles:
+                    actions.append((self.select_noble, dict(noble=n)))
+                return actions
 
-        for level in [1, 2, 3]:
-            for card in self.game.tableau[level]:
-                if card is not None:
-                    if self.can_play(card):
-                        actions.append((self.play, dict(card=card)))
-        for card in self.reserve:
-            if self.can_play(card):
-                actions.append((self.play, dict(card=card)))
-        for i, c1 in enumerate(colors):
-            if self.game.chips[c1] == 0:
-                continue
-            for j, c2 in enumerate(colors[i+1:]):
-                if self.game.chips[c2] == 0:
-                    continue
-                for c3 in colors[i+j+2:]:
-                    if self.game.chips[c3] == 0:
-                        continue
-                    actions.append((self.draw_three, {c1:1, c2:1, c3:1}))
-        for c in colors:
-            if self.game.chips[c] >= 4:
-                actions.append((self.draw_two, dict(color=c)))
-        if len(self.reserve) < 3:
-            for level in [3, 2, 1]:
+            for level in [1, 2, 3]:
                 for card in self.game.tableau[level]:
                     if card is not None:
-                        actions.append((self.reserve_card, dict(card=card)))
+                        if self.can_play(card):
+                            actions.append((self.play, dict(card=card)))
+            for card in self.reserve:
+                if self.can_play(card):
+                    actions.append((self.play, dict(card=card)))
+            if len(self.reserve) < 3:
+                for level in [3, 2, 1]:
+                    for card in self.game.tableau[level]:
+                        if card is not None:
+                            actions.append((self.reserve_card, dict(card=card)))
+            for i, c in enumerate(colors):
+                if self.game.chips[c] > 0:
+                    actions.append((self.draw, dict(color=c)))
+        else:
+            for i, c in enumerate(colors):
+                if self.can_draw(c):
+                    actions.append((self.draw, dict(color=c)))
         return actions
-
+        
+    def can_draw(self, color):
+        if game.chips[color] > 0:
+            if color not in self.drawn_this_turn:
+                return True
+            elif self.game.chips[color] >= 3 and len(self.drawn_this_turn) == 1:
+                return True
+        return False
+    
+        
+    def draw(self, color):
+        self.game.chips[color] -= 1
+        self.chips[color] += 1
+        self.drawn_this_turn.append(color)
+        if len(self.drawn_this_turn) >= 3:
+            self.game.end_turn()
+        if len(self.drawn_this_turn) >= 2 and color in self.drawn_this_turn[:-1]:
+            self.game.end_turn()
+        if sum([self.can_draw(c) for c in colors]) == 0:
+            self.game.end_turn()
 
 class Splendor(object):
     def __init__(self, seed):
@@ -309,6 +288,7 @@ class Splendor(object):
     def end_turn(self, reset_pass=True):
         if reset_pass:
             self.pass_count = 0
+        del self.players[self.current_player].drawn_this_turn[:]
         self.current_player = ((self.current_player + 1) % len(self.players))
         if self.end_game and self.current_player == self.first_player:
             max_points = max([p.points for p in self.players])
@@ -414,6 +394,8 @@ def text_action(func, args):
         return 'Draw Three: %s %s %s' % tuple(args.keys())
     elif name == 'draw_two':
         return 'Draw Two: %s' % args['color']
+    elif name == 'draw':
+        return 'Draw: %s' % args['color']        
     elif name == 'reserve_card':
         return 'Reserve: %s' % text_card(args['card'])
     elif name == 'play':
@@ -432,6 +414,8 @@ def code_action(func, args):
         return 'd3:%s%s%s' % tuple(args.keys())
     elif name == 'draw_two':
         return 'd2:%s' % args['color']
+    elif name == 'draw':
+        return 'd:%s' % args['color']
     elif name == 'reserve_card':
         return 'r:%s' % text_card(args['card'])
     elif name == 'play':
