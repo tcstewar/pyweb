@@ -227,12 +227,6 @@ class Splendor(object):
         self.n_players = 1
         self.current_player = None
         self.seed = seed
-    
-    
-    def start(self):
-        self.started = True
-        n_players = self.n_players
-        self.players = [Player(self) for i in range(n_players)]
         all_cards = generate_cards()
         rng = random.Random()
         rng.seed(self.seed)
@@ -241,18 +235,29 @@ class Splendor(object):
         self.tableau = {}
         for level in [1, 2, 3]:
             self.levels[level] = [x for x in all_cards if x.level==level]
-            self.tableau[level] = [self.draw(level) for j in range(4)]
-
+            self.tableau[level] = [None] * 4
+            
         all_nobles = generate_nobles()
         rng.shuffle(all_nobles)
-        self.nobles = all_nobles[:n_players+1]
+        self.nobles = all_nobles
         self.must_select_noble = False
-
-        self.first_player = rng.randrange(n_players)
-        self.current_player = self.first_player
         self.end_game = False
         self.winners = None
         self.pass_count = 0
+        self.rng = rng
+
+            
+    
+    def start(self):
+        self.started = True
+        n_players = self.n_players
+        self.nobles = self.nobles[:n_players+1]
+        self.players = [Player(self) for i in range(n_players)]
+        for level in [1, 2, 3]:
+            self.tableau[level] = [self.draw(level) for j in range(4)]
+
+        self.first_player = self.rng.randrange(n_players)
+        self.current_player = self.first_player
 
         n_chips = 7 if n_players > 2 else 4
         self.chips = dict(k=n_chips, w=n_chips, r=n_chips,
@@ -272,8 +277,8 @@ class Splendor(object):
     def remove_card(self, card):
         for level in [1, 2, 3]:
             if card in self.tableau[level]:
-                self.tableau[level].remove(card)
-                self.tableau[level].append(self.draw(level))
+                index = self.tableau[level].index(card)
+                self.tableau[level][index] = self.draw(level)
                 return
         raise Exception('removed unknown card')
 
@@ -323,12 +328,13 @@ def text_game_state(game):
     rows = []
     n = ''.join('%14s' % text_noble(n) for n in game.nobles)
     rows.append(n)
+    '''
     rows.append('-'*76)
     for level in [3, 2, 1]:
         lev = ''.join('%19s' % text_card(c) for c in game.tableau[level])
         rows.append(lev)
     rows.append('-'*76)
-
+    '''
     chips = []
     for c in colors+'x':
         chips.append('%d%s' % (game.chips[c], c))
@@ -387,6 +393,15 @@ def text_card(card):
             cost.append('%d%s' % (v, c))
 
     return '[%s%s](%s)' % (card.bonus, points, ':'.join(cost))
+    
+def code_card(card):
+    code = '%s%d-' % (card.bonus, card.points)
+    for c in 'kwrgb':
+        v = getattr(card, c)
+        if v > 0:
+            code += c * v
+    return code
+    
 
 def text_action(func, args):
     name = func.__name__
@@ -432,7 +447,7 @@ def code_action(func, args):
         
 def html_action(func, args):
     code = "peerstack.add('%s')" % code_action(func, args)
-    return '<li onclick="%s">%s</li>' % (code, text_action(func, args))
+    return '<button onclick="%s">%s</li>' % (code, text_action(func, args))
 
 def act(code):
     actions = game.valid_actions()
@@ -441,9 +456,40 @@ def act(code):
         if code == code2:
             f(**a)
     
-def update():
+def update(animate=True):
+    for c in generate_cards():
+        id = code_card(c)
+        card = q('#%s' % id)
+        
+        if c in game.levels[c.level]:
+            pos_top = {1:55,2:35,3:15}[c.level]
+            pos_left = 2.5
+            facedown = True
+        elif c in game.tableau[c.level]:
+            index = game.tableau[c.level].index(c)
+            pos_top = {1:55,2:35,3:15}[c.level]
+            pos_left = {0:22.5, 1:42.5, 2:62.5, 3:82.5}[index]
+            facedown = False
+        else:
+            continue
+            
+        if animate:
+            now_top = card.prop('style')['top']
+            now_left = card.prop('style')['left']
+            pos_top = '%g%%'%pos_top
+            pos_left = '%g%%'%pos_left
+            if pos_top != now_top or pos_left != now_left:
+                card.animate(dict(top=pos_top, left=pos_left), 500)
+        else:
+            card.prop('style', 'top:%g%%; left:%g%%' % (pos_top, pos_left))
+        if facedown:
+            card.addClass('facedown')
+        else:
+            card.removeClass('facedown')
+        
+
     txt = text_game_state(game)
-    q('#board').html('<pre>%s</pre>'%txt)
+    q('#board_text').html('<pre>%s</pre>'%txt)
 
     actions = game.valid_actions()
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
@@ -453,6 +499,29 @@ def on_changed(items, metadata):
     game = Splendor(seed=metadata['seed'])
     for item in items:
         act(item)
-    update()
+    update(animate=game.started)
 
+def initialize_ui():
+    board = q('#board')
+    board.html('')
+    for c in generate_cards():
+        id = code_card(c)
+        
+        card = q('<div></div>')
+        card.prop('id',id)
+        card.prop('class','card %c facedown level%d'%(c.bonus, c.level))
+        if c.points > 0:
+            card.append('<div class="points">%d</div>' % c.points)
+        cost = q('<div class="cost"></div>')
+        for cc in colors:
+            v = getattr(c, cc)
+            if v > 0:
+                cost.append('<div class="cost_%s">%d</div>' % (cc, v))
+        card.append(cost)
+        
+        board.append(card)
+                
+    
+    
+initialize_ui()
 
