@@ -245,6 +245,7 @@ class Splendor(object):
         self.winners = None
         self.pass_count = 0
         self.rng = rng
+        self.chips = {}
 
             
     
@@ -335,10 +336,10 @@ def text_game_state(game):
         rows.append(lev)
     rows.append('-'*76)
     '''
-    chips = []
-    for c in colors+'x':
-        chips.append('%d%s' % (game.chips[c], c))
-    rows.append('  '.join(chips))
+    #chips = []
+    #for c in colors+'x':
+    #    chips.append('%d%s' % (game.chips[c], c))
+    #rows.append('  '.join(chips))
     rows.append('='*76)
 
 
@@ -468,7 +469,7 @@ def update(animate=True):
         elif c in game.tableau[c.level]:
             index = game.tableau[c.level].index(c)
             pos_top = {1:55,2:35,3:15}[c.level]
-            pos_left = {0:22.5, 1:42.5, 2:62.5, 3:82.5}[index]
+            pos_left = 22.5 + 16*index
             facedown = False
         else:
             continue
@@ -486,6 +487,10 @@ def update(animate=True):
             card.addClass('facedown')
         else:
             card.removeClass('facedown')
+            
+    for k, v in game.chips.items():
+        chip = q('#chip-%s' % k)
+        chip.text('%d' % v)
         
 
     txt = text_game_state(game)
@@ -520,6 +525,10 @@ def initialize_ui():
         card.append(cost)
         
         board.append(card)
+    for i, c in enumerate(colors+'x'):
+        top = 12.5 + i*10
+        coin = q('<div id="chip-%s" class="chip %s" style="top:%g%%; left:85%%">0</div>' % (c, c, top))
+        board.append(coin)
                 
     
     

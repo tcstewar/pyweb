@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="css/pyweb.css"/>
-    <link rel="stylesheet" href="splendor.css"/>
+    <link rel="stylesheet" href="splendor.css?2"/>
     <script src="js/jquery-3.5.0.min.js"></script>
     <script src="js/peerjs.min.js"></script>
     <script src="js/peerstack.js?1"></script>
@@ -37,7 +37,6 @@
     
     
       function reload() {
-        console.log('reload');
         $.get({url: 'splendor.py', cache:false}).then((code) => {
             pyodide.runPython(code);
             on_changed = pyodide.pyimport('on_changed');
@@ -107,6 +106,15 @@
             <div id="card13" class="card k" style="top:55%; left:42.5%"></div>
             <div id="card14" class="card r" style="top:55%; left:62.5%"></div>
             <div id="card15" class="card g" style="top:55%; left:82.5%"></div>
+            
+            <div class="chip r" style="top:12.5%; left:85%">5</div>
+            <div class="chip g" style="top:22.5%; left:85%">5</div>
+            <div class="chip b" style="top:32.5%; left:85%">5</div>
+            <div class="chip k" style="top:42.5%; left:85%">5</div>
+            <div class="chip w" style="top:52.5%; left:85%">5</div>
+            <div class="chip y" style="top:62.5%; left:85%">5</div>
+            
+            
         </div>
         <div id="board_text"></div>
         <div id="actions"></div>
