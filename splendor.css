@@ -24,6 +24,7 @@ div#board {
     --k_color: darkslategray;
 }
 
+    
 
 div.chip {
     width:var(--card_width);
@@ -37,6 +38,12 @@ div.chip {
     border: 1px solid darkgray;
 }
 
+div.action {
+    box-shadow: 0px 0px 10px white; 
+}
+div.action:hover {
+    box-shadow: 0px 0px 20px white; 
+}
 
 div.card {
     width:var(--card_width);

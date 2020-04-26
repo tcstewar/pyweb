@@ -445,6 +445,17 @@ def code_action(func, args):
     else:
         return 'unknown:%r %r' % (name, args)
         
+def ui_action(func, args):
+    name = func.__name__
+    cmd = "peerstack.add('%s')" % code_action(func, args)
+    if name == 'draw':
+        obj = q('#chip-%s' % args['color'])
+    elif name == 'play':
+        obj = q('#%s' % code_card(args['card']))
+    else:
+        return
+    obj.attr('onclick', cmd)
+    obj.addClass("action")
         
 def html_action(func, args):
     code = "peerstack.add('%s')" % code_action(func, args)
@@ -496,7 +507,14 @@ def update(animate=True):
     txt = text_game_state(game)
     q('#board_text').html('<pre>%s</pre>'%txt)
 
+    q('.chip').removeClass("action")
+    q('.chip').attr("onclick", "")
+    q('.card').removeClass("action")
+    q('.card').attr("onclick", "")
+    
     actions = game.valid_actions()
+    for a in actions:
+        ui_action(*a)
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
     
 def on_changed(items, metadata):
