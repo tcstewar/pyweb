@@ -1,6 +1,7 @@
 import js
 jq = js.jQuery
 q = js.query
+window = js.window
 import collections
 import random
 
@@ -513,8 +514,9 @@ def update(animate=True):
     q('.card').attr("onclick", "")
     
     actions = game.valid_actions()
-    for a in actions:
-        ui_action(*a)
+    if game.current_player == window.peerstack.index:
+        for a in actions:
+            ui_action(*a)
     q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
     
 def on_changed(items, metadata):

@@ -2,6 +2,7 @@ class PeerStack {
     constructor() {
         this.items = [];
         this.metadata = {}
+        this.index = 0;
     }
     
     init() { 
@@ -44,10 +45,17 @@ class PeerStack {
                 $(this).trigger('added');
             }
         } else if (data.type == 'get-all') {
-            conn.send({type:"all", value:this.items, metadata:this.metadata});
+            console.log(conn);
+            console.log(this.clients);
+            conn.send({type:"all", 
+                       value:this.items, 
+                       metadata:this.metadata,
+                       index:this.clients.findIndex((item) => item == conn)+1,
+                      });
         } else if (data.type == 'all') {
             this.metadata = data.metadata;
             this.items = data.value;
+            this.index = data.index;
             $(this).trigger('changed');
         } else if (data.type == 'undo') {
             this.undo();
