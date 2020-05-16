@@ -78,6 +78,7 @@ class Player(object):
         self.nobles = []
         self.points = 0
         self.drawn_this_turn = []
+        self.reserving = False
 
     def can_reserve_card(self, card):
         if self.game.players[self.game.current_player] is not self:
@@ -90,13 +91,11 @@ class Player(object):
             return False
         return True
 
-    def reserve_card(self, card):
+    def reserve_card(self, card):        
         assert self.can_reserve_card(card)
         self.reserve.append(card)
         self.game.remove_card(card)
-        if self.game.chips['x'] > 0:
-            self.game.chips['x'] -= 1
-            self.chips['x'] += 1
+        self.reserving = False
         self.game.end_turn()
 
     def can_play(self, card):
@@ -110,7 +109,7 @@ class Player(object):
         for c in colors:
             cost = getattr(card, c)
             if self.chips[c] + self.bonus[c] < cost:
-                extra_needed += cost - (self.chips[c] - self.bonus[c])
+                extra_needed += cost - (self.chips[c] + self.bonus[c])
         if extra_needed > self.chips['x']:
             return False
         return True
@@ -174,7 +173,13 @@ class Player(object):
 
     def valid_actions(self):
         actions = []
-        if len(self.drawn_this_turn) == 0:
+        
+        if self.reserving:
+            for level in [3, 2, 1]:
+                for card in self.game.tableau[level]:
+                    if card is not None:
+                        actions.append((self.reserve_card, dict(card=card)))
+        elif len(self.drawn_this_turn) == 0:
             if self.game.must_select_noble:
                 for n in self.game.selectable_nobles:
                     actions.append((self.select_noble, dict(noble=n)))
@@ -188,14 +193,11 @@ class Player(object):
             for card in self.reserve:
                 if self.can_play(card):
                     actions.append((self.play, dict(card=card)))
-            if len(self.reserve) < 3:
-                for level in [3, 2, 1]:
-                    for card in self.game.tableau[level]:
-                        if card is not None:
-                            actions.append((self.reserve_card, dict(card=card)))
             for i, c in enumerate(colors):
                 if self.game.chips[c] > 0:
                     actions.append((self.draw, dict(color=c)))
+            if self.game.chips['x'] > 0 and len(self.reserve)<3:
+                actions.append((self.draw, dict(color='x')))
         else:
             for i, c in enumerate(colors):
                 if self.can_draw(c):
@@ -203,7 +205,10 @@ class Player(object):
         return actions
         
     def can_draw(self, color):
-        if game.chips[color] > 0:
+        if color == 'x':
+            if len(self.drawn_this_turn) == 0 and len(self.reserved) < 3:
+                return True
+        elif game.chips[color] > 0:
             if color not in self.drawn_this_turn:
                 return True
             elif self.game.chips[color] >= 3 and len(self.drawn_this_turn) == 1:
@@ -212,9 +217,16 @@ class Player(object):
     
         
     def draw(self, color):
-        self.game.chips[color] -= 1
-        self.chips[color] += 1
+        if color == 'x' and self.game.chips[color] == 0:
+            pass
+        else:
+            self.game.chips[color] -= 1
+            self.chips[color] += 1
         self.drawn_this_turn.append(color)
+        if color == 'x':
+            if len(self.reserve) < 3:
+                self.reserving = True
+            return
         if len(self.drawn_this_turn) >= 3:
             self.game.end_turn()
         if len(self.drawn_this_turn) >= 2 and color in self.drawn_this_turn[:-1]:
@@ -341,10 +353,10 @@ def text_game_state(game):
     #for c in colors+'x':
     #    chips.append('%d%s' % (game.chips[c], c))
     #rows.append('  '.join(chips))
-    rows.append('='*76)
+    #rows.append('='*76)
 
 
-
+    '''
     for i, p in enumerate(game.players):
         current = '*' if game.current_player == i else ' '
         chip_info = []
@@ -371,7 +383,7 @@ def text_game_state(game):
 
         rows.append('%sP%d [%d] %s %s %s' % (current, i, p.points, 
                                             ':'.join(chip_info), nobles, reserve))
-
+    '''
     return '\n'.join(rows)
 
 def text_noble(noble):
@@ -427,11 +439,7 @@ def text_action(func, args):
         return name, args
 def code_action(func, args):
     name = func.__name__
-    if name == 'draw_three':
-        return 'd3:%s%s%s' % tuple(args.keys())
-    elif name == 'draw_two':
-        return 'd2:%s' % args['color']
-    elif name == 'draw':
+    if name == 'draw':
         return 'd:%s' % args['color']
     elif name == 'reserve_card':
         return 'r:%s' % text_card(args['card'])
@@ -453,10 +461,13 @@ def ui_action(func, args):
         obj = q('#chip-%s' % args['color'])
     elif name == 'play':
         obj = q('#%s' % code_card(args['card']))
+    elif name == 'reserve_card':
+        obj = q('#%s' % code_card(args['card']))
     else:
-        return
+        return False
     obj.attr('onclick', cmd)
     obj.addClass("action")
+    return True
         
 def html_action(func, args):
     code = "peerstack.add('%s')" % code_action(func, args)
@@ -473,16 +484,40 @@ def update(animate=True):
     for c in generate_cards():
         id = code_card(c)
         card = q('#%s' % id)
+        z = 0
         
+        reserve = False
         if c in game.levels[c.level]:
-            pos_top = {1:55,2:35,3:15}[c.level]
+            pos_top = {1:50,2:35,3:20}[c.level]
             pos_left = 2.5
             facedown = True
         elif c in game.tableau[c.level]:
             index = game.tableau[c.level].index(c)
-            pos_top = {1:55,2:35,3:15}[c.level]
+            pos_top = {1:50,2:35,3:20}[c.level]
             pos_left = 22.5 + 16*index
             facedown = False
+        elif game.started:
+            for i, player in enumerate(game.players):
+                if c in player.cards:
+                    pos_top, pos_left = calc_item_position(player=i, color=c.bonus)
+                    offset = [cc for cc in player.cards if c.bonus==cc.bonus].index(c)
+                    pos_top += offset*2
+                    pos_left += offset*1
+                    z = offset
+                    facedown = False
+                    break
+                elif c in player.reserve:
+                    pos_top, pos_left = calc_item_position(player=i, color='x')
+                    offset = player.reserve.index(c)
+                    pos_top += offset*4
+                    pos_left += offset*2
+                    z = offset
+                    facedown = False
+                    reserve = True
+                    break
+                
+            else:
+                continue
         else:
             continue
             
@@ -492,18 +527,37 @@ def update(animate=True):
             pos_top = '%g%%'%pos_top
             pos_left = '%g%%'%pos_left
             if pos_top != now_top or pos_left != now_left:
-                card.animate(dict(top=pos_top, left=pos_left), 500)
+                card.animate({'top':pos_top, 'left':pos_left, 'z-index':z}, 500)
         else:
-            card.prop('style', 'top:%g%%; left:%g%%' % (pos_top, pos_left))
+            card.prop('style', 'top:%g%%; left:%g%%; z-index:%d;' % (pos_top, pos_left, z))
         if facedown:
             card.addClass('facedown')
         else:
             card.removeClass('facedown')
+        if reserve:
+            card.addClass('reserve')
+        else:
+            card.removeClass('reserve')
+        
             
     for k, v in game.chips.items():
         chip = q('#chip-%s' % k)
         chip.text('%d' % v)
-        
+        if v == 0:
+            chip.addClass("empty")
+        else:
+            chip.removeClass("empty")
+            
+    if game.started:
+        for i in range(game.n_players):
+            for k, v in game.players[i].chips.items():
+                chip = q('#chip-%d-%s' % (i,k))
+                chip.text('%d' % v)
+                if v == 0:
+                    chip.addClass("empty")
+                else:
+                    chip.removeClass("empty")
+                  
 
     txt = text_game_state(game)
     q('#board_text').html('<pre>%s</pre>'%txt)
@@ -514,18 +568,28 @@ def update(animate=True):
     q('.card').attr("onclick", "")
     
     actions = game.valid_actions()
-    if game.current_player == window.peerstack.index:
+    html = []
+    if game.current_player == window.peerstack.index or not game.started:
         for a in actions:
-            ui_action(*a)
-    q('#actions').html('<ul>%s</ul>'%''.join([html_action(*a) for a in actions]))
+            handled = ui_action(*a)
+            if not handled:
+                html.append(html_action(*a))
+    if len(html) > 0:
+        q('#actions').html('<ul>%s</ul>'%''.join(html))
+    else:
+        q('#actions').html('')
+    
     
 def on_changed(items, metadata):
     global game
     game = Splendor(seed=metadata['seed'])
     for item in items:
         act(item)
+    init_game_ui()
     update(animate=game.started)
-
+    
+    
+    
 def initialize_ui():
     board = q('#board')
     board.html('')
@@ -546,11 +610,47 @@ def initialize_ui():
         
         board.append(card)
     for i, c in enumerate(colors+'x'):
-        top = 12.5 + i*10
-        coin = q('<div id="chip-%s" class="chip %s" style="top:%g%%; left:85%%">0</div>' % (c, c, top))
+        top = 20 + i*7
+        coin = q('<div id="chip-%s" class="chip %s empty" style="top:%g%%; left:85%%">0</div>' % (c, c, top))
         board.append(coin)
-                
+     
+initialized_players = None     
+def init_game_ui():
+
+    global initialized_players
+    if initialized_players == game.n_players and game.started:
+        return
     
+    board = q('#board')
     
+    if initialized_players is not None:
+        for i in range(initialized_players):
+            for c in colors+'x':
+                q('#chip-%d-%s' % (i, c)).remove()
+    
+    for i in range(game.n_players):
+        for c in colors+'x':
+            top, left = calc_item_position(i, c)
+            top += 10
+            left -=1
+            coin = q('<div id="chip-%d-%s" class="chip %s empty" style="top:%g%%; left:%g%%">0</div>' % (i, c, c, top, left))
+            board.append(coin)
+    initialized_players = game.n_players
+        
+        
+def calc_item_position(player, color):
+    if player == window.peerstack.index:
+        top = 65
+        index = (colors+'x').index(color)
+        left = 14 + index*12
+    else:
+        width = 100 / (game.n_players - 1)
+        top_index = player
+        if window.peerstack.index < player:
+            top_index -= 1
+        top = 0
+        index = (colors+'x').index(color)
+        left = (14 + index*12) * width / 100 + top_index * width
+    return top, left
 initialize_ui()
 
