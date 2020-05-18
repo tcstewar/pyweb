@@ -598,9 +598,6 @@ def update(animate=True):
                     chip.removeClass("empty")
                   
 
-    txt = text_game_state(game)
-    q('#board_text').html('<pre>%s</pre>'%txt)
-
     q('.chip').removeClass("action")
     q('.chip').attr("onclick", "")
     q('.card').removeClass("action")
@@ -696,7 +693,7 @@ def calc_item_position(player, color):
         top = 65
         index = ('*'+colors+'x').index(color)
         left = 2 + index*12
-    else:
+    elif game.n_players > 1:
         width = 100 / (game.n_players - 1)
         top_index = player
         if window.peerstack.index < player:
@@ -704,6 +701,9 @@ def calc_item_position(player, color):
         top = 0
         index = ('*'+colors+'x').index(color)
         left = (2 + index*12) * width / 100 + top_index * width
+    else:
+        top = -10
+        left = -10
     return top, left
 initialize_ui()
 
