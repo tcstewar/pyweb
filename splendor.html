@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="splendor.css?7"/>
     <script src="js/jquery-3.5.0.min.js"></script>
     <script src="js/peerjs.min.js"></script>
-    <script src="js/peerstack.js?19"></script>
+    <script src="js/peerstack.js?20"></script>
     
     <script type="text/javascript">
       window.languagePluginUrl = 'pyodide/'
@@ -43,8 +43,12 @@
                 redraw();
             }
         };
-    
-    
+        
+        
+      function restart() {
+         metadata = {seed:Math.floor(Math.random() * Math.pow(2, 32))};
+         peerstack.restart(metadata);
+      }
     
     
       function reload() {

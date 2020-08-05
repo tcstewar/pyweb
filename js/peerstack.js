@@ -67,6 +67,8 @@ class PeerStack {
             $(this).trigger('changed');
         } else if (data.type == 'undo') {
             this.undo();
+        } else if (data.type == 'restart') {
+            this.restart(data.metadata);
         }
     }
     
@@ -107,6 +109,18 @@ class PeerStack {
             this.conn.send({type:"undo"});
         }
     }
+    
+    restart(metadata) {
+        if (this.is_host) {
+            this.metadata = metadata;
+            this.items = [];
+            this.send_to_clients({type:"all", value:this.items, metadata:this.metadata});
+            $(this).trigger('changed');
+        } else {
+            this.conn.send({type:"restart", metadata:metadata});
+        }
+    }
+            
             
     
     on(ev, func) {
