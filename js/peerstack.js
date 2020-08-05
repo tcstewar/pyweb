@@ -1,13 +1,16 @@
 class PeerStack {
     constructor() {
+        console.log('peerstack constructor');
         this.items = [];
         this.metadata = {}
-        this.index = 0;
+        this.index = -1;
     }
     
-    init(args) { 
+    init(args) {
+        console.log('peerstack init');
         self = this;
         this.clients = [];
+        this.index = 0;
         this.peer = new Peer(args.id);            
         this.peer.on('open', () => {$(self).trigger('open');});
         this.peer.on('connection', (conn) => {self.on_connect_from_client(conn);});
@@ -39,6 +42,7 @@ class PeerStack {
     }
     
     received_data(data, conn) {
+        console.log('received', data);
         if (data.type == 'item') {
             if (this.is_host) {
                 this.add(data.value);
@@ -70,6 +74,8 @@ class PeerStack {
         self = this;
         this.clients.push(conn);
         conn.on('data', (data) => {self.received_data(data, conn);});
+        conn.on('error', (data) => {console.log('error: '+data);});
+        conn.on('close', () => {console.log('close');});
     }
         
         
